@@ -901,62 +901,51 @@
 ═══════════════════════════════════════════════════════ */
 const QUESTIONS = [
     // --- SHAPES ---
-    "🔴 ⭕ (これは何の形ですか？)", // a red circle
-    "🔵 ⏹️ (これは何の形ですか？)", // a blue square
-    "🟡 ▲ (これは何の形ですか？)", // a yellow triangle
-    "🟢 ⭐ (これは何の形ですか？)", // a green star
-    "🧡 🧡 (これは何の形ですか？)", // an orange heart
-    "🟣 💎 (これは何の形ですか？)", // a purple diamond
-    "⚪ 🥚 (これは何の形ですか？)", // a white oval
-    "⬛ 📏 (これは何の形ですか？)", // a black rectangle
+    "⭕ (What shape is this?)", // a red circle
+    "⏹️ (What shape is this?)", // a blue square
+    "▲ (What shape is this?)", // a yellow triangle
+    "⭐ (What shape is this?)", // a green star
+    "🧡 (What shape is this?)", // an orange heart
+    "📏 (What shape is this?)", // a black rectangle
 
-    // --- COLORS (Objects) ---
-    "🔴 🍎 (これは何色ですか？)",   // a red apple
-    "🟡 🍌 (これは何色ですか？)",   // a yellow banana
-    "🟢 🌲 (これは何色ですか？)",   // a green tree
-    "🔵 🌊 (これは何色ですか？)",   // blue water
-    "🟣 🍇 (これは何色ですか？)",   // purple grapes
-    "🟠 🥕 (これは何色ですか？)",   // an orange carrot
-
-    // --- SCHOOL SUPPLIES ("I have a...") ---
-    "🖼️ ✏️ (これは何ですか？)", // I have a pencil
-    "🖼️ 🖊️ (これは何ですか？)", // I have a pen
-    "🖼️ 📏 (これは何ですか？)", // I have a ruler
-    "🖼️ 📕 (これは何ですか？)", // I have a textbook
-    "🖼️ ✂️ (これは何ですか？)", // I have a pair of scissors
-    "🖼️ 📔 (これは何ですか？)", // I have a notebook
-    "🖼️ 🧼 (これは何ですか？)", // I have an eraser
-    "🖼️ 🖍️ (これは何ですか？)", // I have a crayon
+    // --- SCHOOL SUPPLIES ("This is a...") ---
+    "✏️ (What is this?)", // This is a pencil
+    "📕 (What is this?)", // This is a textbook
 
     // --- TIME ---
-    "⏰ 08:25 PM (今、何時ですか？)", // It's eight twenty-five p.m.
-    "⏰ 10:10 AM (今、何時ですか？)", // It's ten ten a.m.
-    "⏰ 03:30 PM (今、何時ですか？)", // It's three thirty p.m.
-    "⏰ 12:00 PM (今、何時ですか？)", // It's twelve p.m. (noon)
+    "⏰ 🌙 08:25 PM (What time is it?)", // It's eight twenty-five p.m.
+    "⏰ ☀️ 10:10 AM (What time is it?)", // It's ten ten a.m.
+    "⏰ 🌙 03:30 PM (What time is it?)", // It's three thirty p.m.
 
-    // --- IDENTIFYING COLORS (Spelling) ---
-    "🎨 🔴 (つづりを教えてください)", // How do you spell red?
-    "🎨 🔵 (つづりを教えてください)", // How do you spell blue?
-    "🎨 🟡 (つづりを教えてください)", // How do you spell yellow?
-    "🎨 🟢 (つづりを教えてください)", // How do you spell green?
+    // --- IDENTIFYING COLORS (Spelling) --- (Read these letters.)
+    "🔴 Red (Read these letters.)", // red
+    "🔵 Blue (Read these letters.)", // blue
+    "🟡 Yellow (Read these letters.)", // yellow
+    "🟢 Green (Read these letters.)", // green
+
+    // --- MONTHS ---
+    "📅 1月 (What month is this?)", // January
+    "📅 4月 (What month is this?)", // April
+    "📅 8月 (What month is this?)", // August
+    "📅 12月 (What month is this?)", // December
+
 
     // --- HOW ARE YOU? ---
-    "😊 ✨ (元気ですか？)", // I am happy / I am great
-    "😴 ✨ (元気ですか？)", // I am tired
-    "😋 ✨ (元気ですか？)", // I am hungry
-    "🤒 ✨ (元気ですか？)", // I am sick
+    "😊 ✨ (How are you?)", // I am happy / I am great
+    "😴 ✨ (How are you?)", // I am tired
+    "😋 🍜 (How are you?)", // I am hungry
 
     // --- HOW'S THE WEATHER? ---
-    "☀️ ☁️ (今日の天気はどうですか？)", // It is sunny
-    "☁️ ☁️ (今日の天気はどうですか？)", // It is cloudy
-    "☔ ☁️ (今日の天気はどうですか？)", // It is rainy
-    "☃️ ☁️ (今日の天気はどうですか？)", // It is snowy
+    "☀️ ☁️ (How is the weather?)", // It is sunny
+    "☁️ ☁️ (How is the weather?)", // It is cloudy
+    "☔ ☁️ (How is the weather?)", // It is rainy
+    "☃️ ☁️ (How is the weather?)", // It is snowy
 
     // --- GUESS THE COLOR ---
-    "🍓 ❓ (イチゴは何色ですか？)",   // Red - strawberry
-    "🌻 ❓ (ヒマワリは何色ですか？)", // Yellow - sunflower
-    "🐘 ❓ (ゾウは何色ですか？)",     // Gray - elephant
-    "🥛 ❓ (牛乳は何色ですか？)"      // White - milk
+    "🍓 ❓ (What color is a strawberry?)", // Red
+    "🌻 ❓ (What color is a sunflower?)",  // Yellow
+    "🐘 ❓ (What color is an elephant?)",   // Gray
+    "🥛 ❓ (What color is milk?)"           // White
 ];
 
 let questionQueue       = [];
