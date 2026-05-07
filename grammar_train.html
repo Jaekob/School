@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The English Sentence Train 🚂</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════════════════ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #0a0a1a; color: #fff;
+  height: 100vh; width: 100vw; overflow: hidden;
+  display: flex; flex-direction: column;
+  user-select: none;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SCENARIO ZONE  (top — clock, weather icons, situation prompt)
+   NOTE: The prompt shows the SITUATION only, not the answer.
+         Students must figure out the sentence from context.
+═══════════════════════════════════════════════════════ */
+#scenario-zone {
+  background: linear-gradient(135deg,#1a1a3e,#0d1b4b);
+  border-bottom: 2px solid #3a3a6e;
+  padding: 0.7vh 2vw;
+  display: flex; align-items: center; gap: 1.8vw;
+  height: 17vh; flex-shrink: 0;
+}
+#clock {
+  width: 11vh; height: 11vh; border-radius: 50%;
+  background: #fff; border: 3px solid #5a5aff; flex-shrink: 0;
+}
+.weather-display { display: flex; gap: 0.9vw; align-items: center; flex-shrink: 0; }
+.weather-icon {
+  font-size: 4vh; cursor: pointer;
+  opacity: 0.32; transition: all 0.2s; filter: grayscale(1);
+}
+.weather-icon.active { opacity: 1; filter: none; transform: scale(1.2); }
+
+#scenario-text { flex: 1; text-align: center; }
+/* Main prompt — situation/instructions only, no spoilers */
+#scenario-prompt { font-size: 3vh; font-weight: bold; color: #ffe066; line-height: 1.5; }
+/* Sentence task label below prompt */
+#scenario-sub { font-size: 1.9vh; color: #7788aa; margin-top: 0.4vh; }
+
+/* ═══════════════════════════════════════════════════════
+   SENTENCE PROGRESS INDICATOR  (S1 → S2 tracker)
+═══════════════════════════════════════════════════════ */
+#sent-progress {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.7vw; margin-top: 0.5vh;
+}
+.sent-pip {
+  width: 2.2vh; height: 2.2vh; border-radius: 50%;
+  background: #2a2a5a; border: 2px solid #444488;
+  transition: background 0.3s, border-color 0.3s;
+}
+.sent-pip.active   { background: #7c3aed; border-color: #a78bfa; }
+.sent-pip.done     { background: #22c55e; border-color: #4ade80; }
+.sent-pip-label    { font-size: 1.4vh; color: #556688; }
+
+/* ═══════════════════════════════════════════════════════
+   TRAIN REVEAL BANNER  (hidden until Reveal is pressed)
+═══════════════════════════════════════════════════════ */
+#train-zone {
+  background: #091330; border-bottom: 2px solid #3a3a6e;
+  height: 0; overflow: hidden; transition: height 0.45s ease;
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.4vw; padding: 0 2vw; flex-shrink: 0;
+}
+#train-zone.visible { height: 8.5vh; }
+.train-chip {
+  background: linear-gradient(135deg,#14532d,#22c55e);
+  border-radius: 9px; padding: 0.5vh 1.1vw;
+  font-size: 2vh; font-weight: bold; color: #fff; white-space: nowrap;
+  opacity: 0; transform: translateY(-14px) scale(0.9);
+  transition: all 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+.train-chip.in { opacity: 1; transform: none; }
+.train-arrow { color: #4ade80; font-size: 2.2vh; opacity: 0; transition: opacity 0.35s; }
+.train-arrow.in { opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════
+   CARD STAGE  (the four word cards, absolutely positioned)
+═══════════════════════════════════════════════════════ */
+#card-stage {
+  position: relative; flex: 1; min-height: 0;
+  padding: 1vh 2vw;
+}
+
+.word-card {
+  position: absolute;
+  border-radius: 16px; border: 3px solid transparent;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.65vh; font-weight: bold; text-align: center;
+  padding: 1.4vh 0.7vw;
+  /* left animates only when .sliding is present */
+  transition: left 0s, top 0s, transform 0.35s ease,
+              background 0.4s, border-color 0.4s, box-shadow 0.4s;
+}
+.word-card.sliding {
+  transition: left 0.72s cubic-bezier(0.68,-0.45,0.27,1.45),
+              top 0.45s ease, transform 0.45s ease,
+              background 0.4s, border-color 0.4s, box-shadow 0.4s;
+}
+
+.card-letter { font-size: 4.2vh; font-weight: 900; opacity: 0.85; }
+.card-word   { font-size: 2.6vh; line-height: 1.2; word-break: break-word; text-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+
+/* Card colors: Red, Yellow, Blue, Green */
+.word-card.card-A { background: linear-gradient(135deg,#991b1b,#dc2626); border-color: #f87171; }
+.word-card.card-B { background: linear-gradient(135deg,#92400e,#d97706); border-color: #fcd34d; color: #FFFFFF; }
+.word-card.card-C { background: linear-gradient(135deg,#1e3a8a,#2563eb); border-color: #93c5fd; }
+.word-card.card-D { background: linear-gradient(135deg,#14532d,#16a34a); border-color: #86efac; }
+
+/* After correct reveal — bright green glow */
+.word-card.correct {
+  background: linear-gradient(135deg,#14532d,#22c55e) !important;
+  border-color: #4ade80 !important;
+  box-shadow: 0 0 22px rgba(74,222,128,0.55) !important;
+}
+
+/* Timer (top-right of card stage) */
+#timer-wrap {
+  position: absolute; right: 2vw; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 0.4vh;
+}
+#timer-svg { width: 12.5vh; height: 12.5vh; }
+#timer-text { font-size: 3.6vh; font-weight: 900; fill: #fff; dominant-baseline: central; text-anchor: middle; }
+#timer-bg   { fill: none; stroke: #2a2a4e; stroke-width: 8; }
+#timer-ring {
+  fill: none; stroke: #2ecc71; stroke-width: 8; stroke-linecap: round;
+  transform-origin: center; transform: rotate(-90deg);
+  transition: stroke-dashoffset 1s linear, stroke 0.3s;
+}
+
+#round-badge {
+  position: absolute; top: 0.8vh; left: 2vw;
+  font-size: 1.5vh; color: #aac4ff;
+  background: #12124a; padding: 0.35vh 0.9vw;
+  border-radius: 8px; border: 1px solid #3a3a6e;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CONTROL ZONE  (bottom — team buttons, actions, scoreboard)
+═══════════════════════════════════════════════════════ */
+#control-zone {
+  background: #0a0a1a; border-top: 2px solid #3a3a6e;
+  height: 24vh; flex-shrink: 0;
+  display: grid; grid-template-columns: 1fr 15vw;
+  gap: 1vw; padding: 0.8vh 2vw;
+}
+#left-controls { display: flex; flex-direction: column; gap: 0.7vh; }
+#team-row      { display: flex; gap: 0.6vw; flex: 1; align-items: stretch; }
+
+.tbtn {
+  flex: 1; border-radius: 10px;
+  border: 2px solid #3a3aff; background: #12124a; color: #aac4ff;
+  font-size: 1.5vh; font-weight: bold; cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.1s;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.2vh; position: relative;
+  -webkit-tap-highlight-color: transparent; touch-action: none; overflow: hidden;
+}
+.tbtn:active { transform: scale(0.91); }
+
+.r1 { background: linear-gradient(135deg,#c8960c,#f1c40f) !important; border-color: #ffe066 !important; color: #1a1000 !important; box-shadow: 0 0 14px rgba(241,196,15,0.55) !important; }
+.r2 { background: linear-gradient(135deg,#7a8a8c,#aab4b6) !important; border-color: #d0d8da !important; color: #0a0a0a !important; }
+.r3 { background: linear-gradient(135deg,#7a3800,#c97a30) !important; border-color: #e0a060 !important; color: #fff !important; }
+.r4 { background: linear-gradient(135deg,#1d6a2e,#27936b) !important; border-color: #4ade80 !important; color: #fff !important; }
+
+.twrong { background: linear-gradient(135deg,#5a0a0a,#9b1c1c) !important; border-color: #f87171 !important; color: #fca5a5 !important; box-shadow: 0 0 14px rgba(248,113,113,0.4) !important; }
+.tdone  { opacity: 0.72; }
+
+.judge-row { display: flex; gap: 3px; margin-top: 1px; }
+.jbtn      { font-size: 1.05vh; padding: 2px 5px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; line-height: 1.2; }
+.jbtn-ok   { background: #4ade80; color: #052e16; }
+.jbtn-no   { background: #f87171; color: #1a0000; }
+
+.rank-badge { font-size: 1.15vh; background: rgba(255,255,255,0.22); border-radius: 4px; padding: 1px 5px; }
+.pts-label  { font-size: 1.05vh; }
+
+.pflash { background: linear-gradient(135deg,#c0392b,#e74c3c) !important; box-shadow: 0 0 20px rgba(231,76,60,0.85) !important; }
+
+#action-row { display: flex; gap: 0.7vw; align-items: center; flex-wrap: wrap; }
+.abtn {
+  height: 5.2vh; padding: 0 1.5vw; border-radius: 10px; border: none;
+  font-size: 1.55vh; font-weight: bold; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.abtn:active { transform: scale(0.95); }
+.btn-go     { background: linear-gradient(135deg,#6d28d9,#7c3aed); color: #fff; }
+.btn-reveal { background: linear-gradient(135deg,#c2410c,#ea580c); color: #fff; }
+.btn-s2     { background: linear-gradient(135deg,#166534,#22c55e); color: #fff; }
+.btn-reset  { background: linear-gradient(135deg,#1e293b,#334155); color: #94a3b8; border: 1px solid #475569; }
+
+#scoreboard {
+  background: #0d0d2e; border: 1px solid #3a3a6e; border-radius: 12px;
+  padding: 0.7vh 0.7vw; display: flex; flex-direction: column; gap: 0.2vh; overflow-y: auto;
+}
+#scoreboard h3 { font-size: 1.4vh; color: #ffe066; text-align: center; margin-bottom: 0.3vh; border-bottom: 1px solid #3a3a6e; padding-bottom: 0.3vh; }
+.srow   { display: flex; justify-content: space-between; align-items: center; font-size: 1.3vh; padding: 0.1vh 0; }
+.slabel { color: #aac4ff; }
+.sval   { font-weight: bold; color: #ffe066; font-size: 1.4vh; }
+
+/* Toast */
+#toast {
+  position: fixed; top: 18vh; left: 50%;
+  transform: translateX(-50%) translateY(-12px);
+  background: #2ecc71; color: #fff; font-size: 2.5vh; font-weight: bold;
+  padding: 1vh 3vw; border-radius: 50px;
+  opacity: 0; transition: all 0.28s; pointer-events: none; z-index: 100; white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* "Next Sentence!" transition banner */
+#next-banner {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.78);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2vh; z-index: 150; opacity: 0; pointer-events: none;
+  transition: opacity 0.35s;
+}
+#next-banner.show { opacity: 1; pointer-events: all; }
+#next-banner h2   { font-size: 5vh; color: #4ade80; }
+#next-banner p    { font-size: 2.2vh; color: #aac4ff; text-align: center; }
+.nbtn {
+  font-size: 2.2vh; padding: 1.4vh 4vw; border-radius: 50px; border: none;
+  background: linear-gradient(135deg,#16a34a,#22c55e); color: #fff; font-weight: bold; cursor: pointer;
+}
+
+/* Intro overlay */
+#intro {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.91);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2vh; z-index: 200;
+}
+#intro h1  { font-size: 6vh; color: #ffe066; }
+#intro p   { font-size: 2vh; color: #aac4ff; text-align: center; max-width: 58vw; line-height: 1.7; }
+.itip      { font-size: 1.55vh !important; color: #445566 !important; }
+.istart {
+  font-size: 2.5vh; padding: 1.5vh 4.5vw; border-radius: 50px; border: none;
+  background: linear-gradient(135deg,#6d28d9,#2563eb); color: #fff; font-weight: bold; cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro">
+  <div style="font-size:7vh">🚂</div>
+  <h1>The English Sentence Train</h1>
+  <p>Two sentences per round — put all four card parts in the correct SVO order!<br>
+     Tap team buttons in the order groups lock in their answer.</p>
+  <p>After pressing <strong style="color:#ea580c">Reveal Answer</strong>, mark each team
+     <strong style="color:#4ade80">✓ Correct</strong> or <strong style="color:#f87171">✗ Wrong</strong>.<br>
+     Wrong teams get 0 pts — others shift up in rank automatically.</p>
+  <p class="itip">💡 Long-press a team button at any time to apply a −1 penalty</p>
+  <button class="istart" onclick="document.getElementById('intro').style.display='none'">🎯 Let's Go!</button>
+</div>
+
+<!-- NEXT SENTENCE TRANSITION BANNER -->
+<div id="next-banner">
+  <div style="font-size:6vh">✅</div>
+  <h2>Sentence 1 complete!</h2>
+  <p>Now build <strong style="color:#fcd34d">Sentence 2</strong> from the same scenario.<br>
+     Cards will be reshuffled.</p>
+  <button class="nbtn" onclick="startSentence2()">▶ Start Sentence 2</button>
+</div>
+
+<!-- SCENARIO ZONE -->
+<div id="scenario-zone">
+  <canvas id="clock" width="110" height="110"></canvas>
+  <div class="weather-display">
+    <span class="weather-icon" onclick="setWeather(this)">☀️</span>
+    <span class="weather-icon" onclick="setWeather(this)">🌧️</span>
+    <span class="weather-icon" onclick="setWeather(this)">❄️</span>
+    <span class="weather-icon" onclick="setWeather(this)">🔥</span>
+    <span class="weather-icon" onclick="setWeather(this)">🧊</span>
+    <span class="weather-icon" onclick="setWeather(this)">⛅</span>
+  </div>
+  <div id="scenario-text">
+    <div id="scenario-prompt">Press <span style="color:#a78bfa">"Scramble / Start"</span> to begin!</div>
+    <div id="scenario-sub">Arrange cards A B C D into the correct English sentence.</div>
+    <div id="sent-progress">
+      <span class="sent-pip-label">S1</span>
+      <div class="sent-pip" id="pip-0"></div>
+      <span class="sent-pip-label">→</span>
+      <div class="sent-pip" id="pip-1"></div>
+      <span class="sent-pip-label">S2</span>
+    </div>
+  </div>
+</div>
+
+<!-- TRAIN REVEAL BANNER -->
+<div id="train-zone">
+  <div id="train-row" style="display:flex;align-items:center;gap:0.5vw;"></div>
+</div>
+
+<!-- CARD STAGE -->
+<div id="card-stage">
+  <div id="round-badge">Round <span id="rnum">1</span></div>
+
+  <div class="word-card card-A" id="card-A">
+    <div class="card-letter">A</div>
+    <div class="card-word"  id="word-A">?</div>
+  </div>
+  <div class="word-card card-B" id="card-B">
+    <div class="card-letter">B</div>
+    <div class="card-word"  id="word-B">?</div>
+  </div>
+  <div class="word-card card-C" id="card-C">
+    <div class="card-letter">C</div>
+    <div class="card-word"  id="word-C">?</div>
+  </div>
+  <div class="word-card card-D" id="card-D">
+    <div class="card-letter">D</div>
+    <div class="card-word"  id="word-D">?</div>
+  </div>
+
+  <div id="timer-wrap">
+    <svg id="timer-svg" viewBox="0 0 100 100">
+      <circle id="timer-bg"   cx="50" cy="50" r="42"/>
+      <circle id="timer-ring" cx="50" cy="50" r="42" stroke-dasharray="263.9" stroke-dashoffset="0"/>
+      <text   id="timer-text" x="50" y="50">60</text>
+    </svg>
+    <div style="font-size:1.1vh;color:#4a5568;">seconds</div>
+  </div>
+</div>
+
+<!-- CONTROL ZONE -->
+<div id="control-zone">
+  <div id="left-controls">
+    <div id="team-row"></div>
+    <div id="action-row">
+      <button class="abtn btn-go"     onclick="scramble()">🚂 Scramble / Start</button>
+      <button class="abtn btn-reveal" onclick="revealAnswer()">✅ Reveal Answer</button>
+      <button class="abtn btn-s2"     onclick="startSentence2()" id="btn-s2" style="display:none">▶ Next Sentence</button>
+      <button class="abtn btn-reset"  onclick="resetRound()">🔄 Next Round</button>
+    </div>
+  </div>
+  <div id="scoreboard">
+    <h3>🏆 Scoreboard</h3>
+    <div id="score-list"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║  TEACHER EDIT ZONE — change scenarios here                      ║
+  ║                                                                  ║
+  ║  Each scenario object:                                           ║
+  ║    weather : 'sunny'|'rainy'|'snowy'|'hot'|'cold'|'cloudy'      ║
+  ║    time    : '07:30'  (24-hour — used to draw clock hands)      ║
+  ║    place   : location shown in the prompt                        ║
+  ║    item    : item shown in the prompt                            ║
+  ║    situation: the clue text shown at the top (no spoilers!)     ║
+  ║    s1      : 4 strings — the CORRECT order for Sentence 1       ║
+  ║    s2      : 4 strings — the CORRECT order for Sentence 2       ║
+  ║                                                                  ║
+  ║  Cards are scrambled randomly every round.                       ║
+  ║  Reveal slides them into s1 / s2 order.                         ║
+  ╚══════════════════════════════════════════════════════════════════╝
+════════════════════════════════════════════════════════════════════ -->
+<script>
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  SCENARIO DATA  — TEACHER EDIT THIS SECTION                        ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+const SCENARIOS = [
+  {
+    weather:   'rainy',
+    time:      '07:30',          // 24-hour clock for the canvas hands
+    situation: "It's rainy this morning. You need to go to Osaka Station.",
+    s1: [ 'I',            'will leave',     'Osaka Station',  'at 7:30 AM'   ],
+    s2: [ 'I will bring', 'an umbrella',    'because',        'it is rainy'  ]
+  },
+  {
+    weather:   'snowy',
+    time:      '08:00',
+    situation: "It's snowing! You have to go to school.",
+    s1: [ 'I',            'will leave',     'school',         'at 8:00 AM'   ],
+    s2: [ 'I will bring', 'warm boots',     'because',        'it is snowy'  ]
+  },
+  {
+    weather:   'sunny',
+    time:      '10:00',
+    situation: "It's a beautiful sunny day. You are going to the beach.",
+    s1: [ 'I',            'will leave',     'the beach',      'at 10:00 AM'  ],
+    s2: [ 'I will bring', 'sunscreen',      'because',        'it is sunny'  ]
+  },
+  {
+    weather:   'hot',
+    time:      '13:00',
+    situation: "It's very hot today. You are heading to the park.",
+    s1: [ 'I',            'will leave',     'the park',       'at 1:00 PM'   ],
+    s2: [ 'I will bring', 'a water bottle', 'because',        'it is hot'    ]
+  },
+  {
+    weather:   'cold',
+    time:      '06:45',
+    situation: "It's freezing cold. You need to leave your house early.",
+    s1: [ 'I',            'will leave',     'my house',       'at 6:45 AM'   ],
+    s2: [ 'I will bring', 'a scarf',        'because',        'it is cold'   ]
+  },
+  {
+    weather:   'rainy',
+    time:      '14:00',
+    situation: "It's raining. You are finishing up at the library.",
+    s1: [ 'I',            'will leave',     'the library',    'at 2:00 PM'   ],
+    s2: [ 'I will bring', 'a raincoat',     'because',        'it is rainy'  ]
+  },
+  {
+    weather:   'cloudy',
+    time:      '12:30',
+    situation: "It looks cloudy. You are at the shopping mall.",
+    s1: [ 'I',            'will leave',     'the mall',       'at 12:30 PM'  ],
+    s2: [ 'I will bring', 'a light jacket', 'because',        'it is cloudy' ]
+  },
+  {
+    weather:   'snowy',
+    time:      '09:00',
+    situation: "Heavy snow today! You are at Namba Station.",
+    s1: [ 'I',            'will leave',     'Namba Station',  'at 9:00 AM'   ],
+    s2: [ 'I will bring', 'hand warmers',   'because',        'it is snowy'  ]
+  },
+  {
+    weather:   'sunny',
+    time:      '11:00',
+    situation: "Sunny skies! You spent the morning at the museum.",
+    s1: [ 'I',            'will leave',     'the museum',     'at 11:00 AM'  ],
+    s2: [ 'I will bring', 'a hat',          'because',        'it is sunny'  ]
+  },
+  {
+    weather:   'hot',
+    time:      '15:30',
+    situation: "It's a hot afternoon. You are done at the gym.",
+    s1: [ 'I',            'will leave',     'the gym',        'at 3:30 PM'   ],
+    s2: [ 'I will bring', 'a sports drink', 'because',        'it is hot'    ]
+  },
+  {
+    weather:   'cold',
+    time:      '07:00',
+    situation: "Cold morning. You need to be at the station on time.",
+    s1: [ 'I',            'will leave',     'the station',    'at 7:00 AM'   ],
+    s2: [ 'I will bring', 'a thermos',      'because',        'it is cold'   ]
+  },
+  {
+    weather:   'rainy',
+    time:      '17:45',
+    situation: "Heavy rain this evening. You are at Shin-Osaka Station.",
+    s1: [ 'I',            'will leave',     'Shin-Osaka',     'at 5:45 PM'   ],
+    s2: [ 'I will bring', 'rubber boots',   'because',        'it is rainy'  ]
+  },
+  {
+    weather:   'sunny',
+    time:      '09:15',
+    situation: "Lovely sunny morning at the zoo!",
+    s1: [ 'I',            'will leave',     'the zoo',        'at 9:15 AM'   ],
+    s2: [ 'I will bring', 'a camera',       'because',        'it is sunny'  ]
+  },
+  {
+    weather:   'cloudy',
+    time:      '16:00',
+    situation: "Cloudy afternoon. You are finishing at school.",
+    s1: [ 'I',            'will leave',     'my school',      'at 4:00 PM'   ],
+    s2: [ 'I will bring', 'a hoodie',       'because',        'it is cloudy' ]
+  },
+];
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  END OF TEACHER EDIT ZONE                                          ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+
+// ─── AUDIO ────────────────────────────────────────────────────────────
+const _ACtx = window.AudioContext || window.webkitAudioContext;
+let _actx = null;
+function ac() { if (!_actx) _actx = new _ACtx(); return _actx; }
+function tone(freq, type, vol, delay, dur) {
+  const a=ac(), o=a.createOscillator(), g=a.createGain();
+  o.connect(g); g.connect(a.destination);
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(vol, a.currentTime+delay);
+  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime+delay+dur);
+  o.start(a.currentTime+delay); o.stop(a.currentTime+delay+dur+0.05);
+}
+const playWhistle = () => { tone(880,'sine',0.4,0,0.06); tone(1300,'sine',0.35,0.06,0.45); };
+const playBell    = () => [523,659,784].forEach((f,i)=>tone(f,'triangle',0.3,i*0.14,0.85));
+const playChime   = () => [1047,1319,1568,2093].forEach((f,i)=>tone(f,'sine',0.22,i*0.18,1.3));
+const playWrong   = () => { tone(320,'sawtooth',0.28,0,0.2); tone(200,'sawtooth',0.28,0.22,0.3); };
+const playPenalty = () => tone(180,'sawtooth',0.3,0,0.4);
+
+// ─── CLOCK ────────────────────────────────────────────────────────────
+// Accepts true 24-hour h (0-23) and m (0-59).
+// The hour hand moves based on 12-hour position including minute offset.
+function drawClock(h24, m) {
+  const cv=document.getElementById('clock');
+  const c=cv.getContext('2d'), cx=cv.width/2, cy=cv.height/2, r=cx-5;
+  c.clearRect(0,0,cv.width,cv.height);
+  // Face
+  c.beginPath(); c.arc(cx,cy,r,0,2*Math.PI);
+  c.fillStyle='#fff'; c.fill(); c.strokeStyle='#5a5aff'; c.lineWidth=3; c.stroke();
+  // Hour tick marks
+  for(let i=0;i<12;i++){
+    const a=(i/12)*2*Math.PI;
+    c.beginPath(); c.moveTo(cx+Math.cos(a)*(r-9),cy+Math.sin(a)*(r-9));
+    c.lineTo(cx+Math.cos(a)*(r-2),cy+Math.sin(a)*(r-2));
+    c.strokeStyle='#333'; c.lineWidth=2; c.stroke();
+  }
+  // Hour hand — use 12-hour position (h24 mod 12) + minute fraction
+  const h12 = h24 % 12; // 0-11
+  const hourAngle = ((h12 + m/60) / 12) * 2*Math.PI - Math.PI/2;
+  c.beginPath(); c.moveTo(cx,cy);
+  c.lineTo(cx + Math.cos(hourAngle)*r*0.52, cy + Math.sin(hourAngle)*r*0.52);
+  c.strokeStyle='#111'; c.lineWidth=5; c.lineCap='round'; c.stroke();
+  // Minute hand — full rotation per 60 minutes
+  const minAngle = (m/60) * 2*Math.PI - Math.PI/2;
+  c.beginPath(); c.moveTo(cx,cy);
+  c.lineTo(cx + Math.cos(minAngle)*r*0.73, cy + Math.sin(minAngle)*r*0.73);
+  c.strokeStyle='#c0392b'; c.lineWidth=3; c.stroke();
+  // Center dot
+  c.beginPath(); c.arc(cx,cy,4,0,2*Math.PI); c.fillStyle='#333'; c.fill();
+}
+drawClock(7,30);
+
+// Format 24h time → "7:30 AM" / "1:00 PM"
+function fmt12(h24, m) {
+  const ap = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 || 12;
+  return `${h12}:${String(m).padStart(2,'0')} ${ap}`;
+}
+// Parse "07:30" → [7, 30]
+function parseT(t) { return t.split(':').map(Number); }
+
+// ─── WEATHER ──────────────────────────────────────────────────────────
+const WMAP = {sunny:0, rainy:1, snowy:2, hot:3, cold:4, cloudy:5};
+function setWeather(el){
+  document.querySelectorAll('.weather-icon').forEach(e=>e.classList.remove('active'));
+  el.classList.add('active');
+}
+function setWeatherAuto(w){
+  const icons=document.querySelectorAll('.weather-icon');
+  icons.forEach(e=>e.classList.remove('active'));
+  if(WMAP[w]!==undefined) icons[WMAP[w]].classList.add('active');
+}
+
+// ─── CARD LAYOUT ──────────────────────────────────────────────────────
+const LTRS = ['A','B','C','D'];
+
+function stageMetrics(){
+  const s=document.getElementById('card-stage');
+  const sw=s.offsetWidth, sh=s.offsetHeight;
+  const cw=Math.min(sw*0.20, 190);
+  const ch=Math.min(sh*0.86, 172);
+  const usable = sw - (sw*0.165); // leave room for timer
+  const gap = (usable - 4*cw) / 5;
+  return { sw, sh, cw, ch, gap, cy: sh/2 - ch/2 };
+}
+
+function slotX(slot, m){ return m.gap + slot*(m.cw+m.gap); }
+
+// Place cards in given slot order, with or without animation.
+// slotToLetter[slot] = letter card that belongs there
+function placeCards(slotToLetter, animate){
+  const m=stageMetrics();
+  LTRS.forEach(l=>{
+    const el=document.getElementById('card-'+l);
+    el.style.width=m.cw+'px'; el.style.height=m.ch+'px'; el.style.top=m.cy+'px';
+    if(!animate) el.classList.remove('sliding');
+  });
+  (slotToLetter||LTRS).forEach((ltr,slot)=>{
+    const el=document.getElementById('card-'+ltr);
+    if(animate) el.classList.add('sliding');
+    el.style.left=slotX(slot,m)+'px';
+  });
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────
+const NUM_TEAMS = 8;
+let scores    = Array(NUM_TEAMS).fill(0);
+let rankOrder = [];
+let rankPts   = {};
+let judged    = {};
+let curSc     = null;
+let curAssign = {};  // letter → part-index (the shuffle)
+let curSent   = 0;   // 0 = sentence 1, 1 = sentence 2
+let timerIv   = null;
+let timerSec  = 60;
+let gameActive = false;
+let revealed   = false;
+let roundNum   = 1;
+let sent1Done  = false; // tracks whether S1 judging is complete for this round
+
+const PTS = [8,7,6,5,4,3,2,1];
+const SUF = ['st','nd','rd','th','th','th','th','th'];
+
+// ─── SENTENCE PROGRESS PIPS ───────────────────────────────────────────
+function updatePips(sentIdx, s1complete){
+  document.getElementById('pip-0').className =
+    'sent-pip' + (sentIdx===0 ? ' active' : s1complete ? ' done' : '');
+  document.getElementById('pip-1').className =
+    'sent-pip' + (sentIdx===1 ? ' active' : '');
+}
+
+// ─── TEAM BUTTONS ─────────────────────────────────────────────────────
+function buildTeamBtns(){
+  const row=document.getElementById('team-row'); row.innerHTML='';
+  for(let i=0;i<NUM_TEAMS;i++){
+    const b=document.createElement('button');
+    b.className='tbtn'; b.id='tb-'+i;
+    b.addEventListener('click',()=>teamTap(i));
+    let pt=null;
+    b.addEventListener('pointerdown',()=>{ pt=setTimeout(()=>{ penalty(i); pt=null; },750); });
+    ['pointerup','pointerleave','pointercancel'].forEach(ev=>
+      b.addEventListener(ev,()=>{ if(pt){clearTimeout(pt);pt=null;} }));
+    row.appendChild(b);
+    drawBtn(i,'idle');
+  }
+  updateSB();
+}
+
+function rankCls(rank){ return ['r1','r2','r3','r4'][Math.min(rank,3)]; }
+
+function drawBtn(i, state){
+  const b=document.getElementById('tb-'+i); if(!b) return;
+  b.className='tbtn';
+  if(state==='idle'){
+    b.innerHTML=`<span style="font-size:1.9vh">Team ${i+1}</span>
+                 <span class="pts-label" id="pil-${i}">${scores[i]} pts</span>`;
+  } else if(state==='ranked'){
+    // Locked in — pending, NO judge buttons
+    const rank=rankOrder.indexOf(i);
+    b.classList.add(rankCls(rank));
+    b.innerHTML=`<span style="font-size:1.7vh">Team ${i+1}</span>
+                 <span class="rank-badge">${rank+1}${SUF[rank]||'th'}</span>
+                 <span class="pts-label">+${rankPts[i]||0} (pending)</span>`;
+  } else if(state==='judge'){
+    // After reveal — show judge buttons
+    const rank=rankOrder.indexOf(i);
+    b.classList.add(rankCls(rank));
+    b.innerHTML=`<span style="font-size:1.6vh">Team ${i+1}</span>
+                 <span class="rank-badge">${rank+1}${SUF[rank]||'th'} · +${rankPts[i]||0}</span>
+                 <div class="judge-row">
+                   <button class="jbtn jbtn-ok" onclick="markCorrect(${i});event.stopPropagation()">✓ OK</button>
+                   <button class="jbtn jbtn-no" onclick="markWrong(${i});event.stopPropagation()">✗ Wrong</button>
+                 </div>`;
+  } else if(state==='confirmed'){
+    const rank=rankOrder.indexOf(i);
+    b.classList.add(rankCls(rank),'tdone');
+    b.innerHTML=`<span style="font-size:1.7vh">Team ${i+1}</span>
+                 <span class="rank-badge">${rank+1}${SUF[rank]||'th'} ✓</span>
+                 <span class="pts-label">+${rankPts[i]||0} pts added</span>`;
+  } else if(state==='wrong'){
+    b.classList.add('twrong');
+    b.innerHTML=`<span style="font-size:1.7vh">Team ${i+1}</span>
+                 <span class="rank-badge">✗ Wrong — 0 pts</span>`;
+  }
+}
+
+function teamTap(i){
+  if(!gameActive) return;
+
+  // DESELECT: tap a ranked team again before reveal to undo their lock-in
+  if(rankOrder.includes(i)){
+    const pos=rankOrder.indexOf(i);
+    rankOrder.splice(pos,1);
+    delete rankPts[i];
+    // Recalculate points for teams still ranked
+    rankOrder.forEach((tid,newRank)=>{
+      rankPts[tid]=PTS[newRank]||1;
+      drawBtn(tid,'ranked');
+    });
+    drawBtn(i,'idle');
+    showToast(`Team ${i+1} removed — tap again to re-add`,'#d97706');
+    return;
+  }
+
+  // SELECT: add to rank order
+  const rank=rankOrder.length;
+  rankOrder.push(i);
+  rankPts[i]=PTS[rank]||1;
+  drawBtn(i,'ranked');
+  showToast(`Team ${i+1} locked in → ${rank+1}${SUF[rank]||'th'}!`,'#1d6a2e');
+}
+
+function penalty(i){
+  scores[i]=Math.max(0,scores[i]-1); updateSB(); playPenalty();
+  const b=document.getElementById('tb-'+i);
+  b.classList.add('pflash'); setTimeout(()=>b.classList.remove('pflash'),450);
+  showToast(`Team ${i+1}: −1 penalty!`,'#dc2626');
+}
+
+function markCorrect(i){
+  if(judged[i]) return;
+  judged[i]='correct';
+  scores[i]+=rankPts[i]||0; updateSB();
+  drawBtn(i,'confirmed');
+  showToast(`Team ${i+1} correct! +${rankPts[i]} pts 🎉`,'#15803d');
+  checkAllJudged();
+}
+
+function markWrong(i){
+  if(judged[i]) return;
+  judged[i]='wrong'; playWrong();
+  const wpos=rankOrder.indexOf(i); rankOrder.splice(wpos,1);
+  // Re-calc points for remaining un-judged teams
+  rankOrder.forEach((tid,newRank)=>{
+    if(judged[tid]!=='correct' && judged[tid]!=='wrong'){
+      rankPts[tid]=PTS[newRank]||1;
+      drawBtn(tid,'judge');
+    }
+  });
+  rankPts[i]=0; drawBtn(i,'wrong'); updateSB();
+  showToast(`Team ${i+1} wrong — 0 pts. Others shift up!`,'#b91c1c');
+  checkAllJudged();
+}
+
+// Once every locked-in team has been judged, offer to move to sentence 2.
+// Also callable manually via the "Next Sentence" button.
+function checkAllJudged(){
+  if(!revealed) return;
+  // Count how many teams locked in total (including those marked wrong who left rankOrder)
+  const totalLocked = rankOrder.length + Object.values(judged).filter(v=>v==='wrong').length;
+  const totalJudged = Object.keys(judged).length;
+  if(totalLocked > 0 && totalJudged >= totalLocked){
+    // All judged — show transition after brief pause
+    setTimeout(()=>{
+      if(curSent===0) document.getElementById('next-banner').classList.add('show');
+    }, 800);
+  }
+}
+
+function startSentence2(){
+  document.getElementById('next-banner').classList.remove('show');
+  document.getElementById('btn-s2').style.display='none';
+  sent1Done=true;
+  // Reset judging state for sentence 2
+  rankOrder=[]; rankPts={}; judged={};
+  for(let i=0;i<NUM_TEAMS;i++) drawBtn(i,'idle');
+  document.getElementById('train-zone').classList.remove('visible');
+  LTRS.forEach(l=>{
+    const el=document.getElementById('card-'+l);
+    el.classList.remove('correct','sliding'); el.style.transform='';
+  });
+  loadSentence(1);
+}
+
+function updateSB(){
+  const list=document.getElementById('score-list'); list.innerHTML='';
+  scores.forEach((s,i)=>{
+    const r=document.createElement('div'); r.className='srow';
+    r.innerHTML=`<span class="slabel">Team ${i+1}</span><span class="sval">${s}</span>`;
+    list.appendChild(r);
+    const pil=document.getElementById('pil-'+i); if(pil) pil.textContent=`${s} pts`;
+  });
+}
+
+// ─── TIMER ────────────────────────────────────────────────────────────
+const CIRC=2*Math.PI*42;
+function setTimerDisplay(sec){
+  const ring=document.getElementById('timer-ring'), txt=document.getElementById('timer-text');
+  const ratio=sec/60;
+  ring.style.strokeDashoffset=CIRC*(1-ratio); txt.textContent=sec;
+  const col=ratio>0.5?'#2ecc71':ratio>0.25?'#f39c12':'#e74c3c';
+  ring.style.stroke=col; txt.style.fill=col;
+}
+function startTimer(){
+  clearInterval(timerIv); timerSec=60; setTimerDisplay(60);
+  timerIv=setInterval(()=>{
+    timerSec--; setTimerDisplay(timerSec);
+    if(timerSec<=0){ clearInterval(timerIv); gameActive=false; playBell(); showToast("⏰ Time's up! 🔔",'#dc2626'); }
+  },1000);
+}
+function stopTimer(){ clearInterval(timerIv); }
+
+// ─── SCRAMBLE ─────────────────────────────────────────────────────────
+function scramble(){
+  playWhistle(); revealed=false; judged={}; rankPts={}; sent1Done=false;
+  document.getElementById('next-banner').classList.remove('show');
+  document.getElementById('btn-s2').style.display='none';
+  document.getElementById('train-zone').classList.remove('visible');
+  LTRS.forEach(l=>{
+    const el=document.getElementById('card-'+l);
+    el.classList.remove('correct','sliding'); el.style.transform='';
+  });
+
+  let idx;
+  do { idx=Math.floor(Math.random()*SCENARIOS.length); }
+  while(SCENARIOS[idx]===curSc && SCENARIOS.length>1);
+  curSc=SCENARIOS[idx];
+
+  const [h,m]=parseT(curSc.time);
+  drawClock(h, m);
+  setWeatherAuto(curSc.weather);
+
+  // Show situation only — no answer spoilers
+  document.getElementById('scenario-prompt').textContent = curSc.situation;
+
+  loadSentence(0);
+}
+
+function loadSentence(sIdx){
+  curSent=sIdx;
+  const parts = sIdx===0 ? curSc.s1 : curSc.s2;
+
+  // Shuffle 4 part indices → assign to A B C D
+  const pi=[0,1,2,3];
+  for(let i=3;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pi[i],pi[j]]=[pi[j],pi[i]]; }
+  curAssign={};
+  LTRS.forEach((l,i)=>{ curAssign[l]=pi[i]; });
+  LTRS.forEach(l=>{ document.getElementById('word-'+l).textContent=parts[curAssign[l]]; });
+
+  LTRS.forEach(l=>{
+    const el=document.getElementById('card-'+l);
+    el.classList.remove('correct','sliding'); el.style.transform='';
+  });
+
+  // Cards always start in A B C D order — no animation
+  placeCards(['A','B','C','D'], false);
+
+  rankOrder=[]; revealed=false;
+  for(let i=0;i<NUM_TEAMS;i++) drawBtn(i,'idle');
+  document.getElementById('rnum').textContent=roundNum;
+  updatePips(sIdx, sent1Done);
+
+  document.getElementById('scenario-sub').textContent = sIdx===0
+    ? '📝 「だれが」＋「する」＋「何を」＋「いつ」'
+    : '📝 「だれが」＋「する」＋「何を」＋「理由（なぜなら〜だから）';
+
+  gameActive=true; startTimer();
+}
+
+// ─── REVEAL ───────────────────────────────────────────────────────────
+// Cards always start as A B C D (slots 0-3).
+// On reveal, each card slides to the slot that matches its correct position.
+function revealAnswer(){
+  if(!curSc || revealed) return;
+  revealed=true; stopTimer(); gameActive=false; playChime();
+
+  const parts = curSent===0 ? curSc.s1 : curSc.s2;
+
+  // letterOfPart[partIndex] = which letter card holds that part
+  const letterOfPart={};
+  Object.entries(curAssign).forEach(([l,pi])=>{ letterOfPart[pi]=l; });
+
+  // correctSlotOrder[slot] = which letter card goes into that slot
+  // Slot 0 = part[0], slot 1 = part[1], etc.
+  const correctSlotOrder = [0,1,2,3].map(pi=>letterOfPart[pi]);
+
+  // Phase 1 — lift cards
+  LTRS.forEach(l=>{
+    const el=document.getElementById('card-'+l);
+    el.classList.remove('sliding');
+    el.style.transition='transform 0.28s ease';
+    el.style.transform='scale(0.84) translateY(-22px)';
+  });
+
+  // Phase 2 — slide to correct slots
+  setTimeout(()=>{
+    placeCards(correctSlotOrder, true);
+  }, 310);
+
+  // Phase 3 — land and glow green
+  setTimeout(()=>{
+    LTRS.forEach(l=>{
+      const el=document.getElementById('card-'+l);
+      el.style.transition='transform 0.45s cubic-bezier(0.34,1.56,0.64,1), background 0.4s, border-color 0.4s, box-shadow 0.4s';
+      el.style.transform='scale(1) translateY(0)';
+      el.classList.add('correct');
+    });
+  }, 1020);
+
+  // Phase 4 — train banner
+  setTimeout(()=>{
+    const row=document.getElementById('train-row'); row.innerHTML='';
+    parts.forEach((part,i)=>{
+      if(i>0){
+        const arr=document.createElement('span');
+        arr.className='train-arrow'; arr.textContent='→'; row.appendChild(arr);
+        setTimeout(()=>arr.classList.add('in'), 80+i*220);
+      }
+      const chip=document.createElement('div'); chip.className='train-chip';
+      chip.innerHTML=`<span style="font-size:1.1vh;opacity:0.5">(${correctSlotOrder[i]})</span> ${part}`;
+      row.appendChild(chip);
+      setTimeout(()=>chip.classList.add('in'), i*225);
+    });
+    document.getElementById('train-zone').classList.add('visible');
+  }, 1350);
+
+  // Phase 5 — judge buttons (ONLY appear here, never during gameplay)
+  setTimeout(()=>{
+    rankOrder.forEach(tid=>drawBtn(tid,'judge'));
+    showToast(
+      rankOrder.length===0 ? 'No teams locked in this round!' : '🚂 Mark each team Correct or Wrong!',
+      rankOrder.length===0 ? '#d97706' : '#6d28d9'
+    );
+    // Show the "Next Sentence" safety-net button on S1 reveal
+    if(curSent===0) document.getElementById('btn-s2').style.display='';
+    // If nobody locked in on S1, auto-show the transition banner too
+    if(rankOrder.length===0 && curSent===0){
+      setTimeout(()=>document.getElementById('next-banner').classList.add('show'), 1200);
+    }
+  }, 1600);
+}
+
+// ─── NEXT ROUND ───────────────────────────────────────────────────────
+function resetRound(){
+  stopTimer(); gameActive=false; revealed=false; sent1Done=false;
+  rankOrder=[]; rankPts={}; judged={};
+  timerSec=60; setTimerDisplay(60); roundNum++;
+  document.getElementById('next-banner').classList.remove('show');
+  document.getElementById('btn-s2').style.display='none';
+  document.getElementById('train-zone').classList.remove('visible');
+  document.getElementById('scenario-prompt').textContent='Press "Scramble / Start" to begin!';
+  document.getElementById('scenario-sub').textContent='Arrange cards A B C D into the correct English sentence.';
+  document.querySelectorAll('.weather-icon').forEach(e=>e.classList.remove('active'));
+  LTRS.forEach(l=>{
+    document.getElementById('word-'+l).textContent='?';
+    const el=document.getElementById('card-'+l);
+    el.classList.remove('correct','sliding'); el.style.transform='';
+  });
+  placeCards(['A','B','C','D'], false);
+  for(let i=0;i<NUM_TEAMS;i++) drawBtn(i,'idle');
+  document.getElementById('rnum').textContent=roundNum;
+  updatePips(0, false);
+  curSc=null;
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────
+let _toastTmr=null;
+function showToast(msg,color){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=color||'#2ecc71';
+  t.classList.add('show'); clearTimeout(_toastTmr);
+  _toastTmr=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────
+buildTeamBtns();
+setTimerDisplay(60);
+placeCards(['A','B','C','D'], false);
+updatePips(0, false);
+window.addEventListener('resize', ()=>placeCards(['A','B','C','D'], false));
+document.body.addEventListener('pointerdown', ()=>{ if(!_actx) _actx=new _ACtx(); }, {once:true});
+</script>
+</body>
+</html>
