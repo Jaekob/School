@@ -1,0 +1,301 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><title>Calling Deck</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
+<style>
+/* Layout: a control panel above a stack of A4 sheets; each sheet is a grid of cut-out cards sized to sit on a Pokemon card inside a sleeve. */
+:root {
+  --bg: #eceff4;
+  --panel: #ffffff;
+  --fg: #1b2230;
+  --muted: #5a6477;
+  --line: #d5dbe6;
+  --accent: #2f54d6;
+  --accent-fg: #ffffff;
+  --paper-shadow: 0 1px 2px rgba(20, 30, 50, .12), 0 8px 24px rgba(20, 30, 50, .12);
+  --font-display: "Fredoka", "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif;
+  --font-body: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11141b; --panel: #1a1f29; --fg: #e8ecf3; --muted: #9aa4b6; --line: #2d3441;
+    --accent: #8aa0ff; --accent-fg: #0d1220; --paper-shadow: 0 1px 2px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11141b; --panel: #1a1f29; --fg: #e8ecf3; --muted: #9aa4b6; --line: #2d3441;
+  --accent: #8aa0ff; --accent-fg: #0d1220; --paper-shadow: 0 1px 2px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.45);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 5vw, 40px); line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 18px 28px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+legend { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+label { display: flex; align-items: center; gap: 8px; }
+.row label { gap: 6px; }
+input[type="number"], input[type="text"], select {
+  font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; width: 78px;
+}
+select { width: 100%; }
+input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.unit { color: var(--muted); font-size: 13px; }
+.help { color: var(--muted); font-size: 13px; margin: 0; }
+
+.print-note { background: var(--panel); border: 1px dashed var(--line); border-radius: 14px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
+.print-note strong { font-family: var(--font-display); font-weight: 600; font-size: 16px; }
+.print-note p { margin: 0; color: var(--muted); font-size: 14px; }
+kbd { font-family: var(--font-display); font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+
+.stats { color: var(--muted); font-size: 14px; display: flex; gap: 6px 18px; flex-wrap: wrap; }
+.stats b { color: var(--fg); font-family: var(--font-display); font-weight: 600; }
+
+.sheets { display: flex; flex-direction: column; gap: 26px; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
+.sheet-label { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.sheet {
+  width: 210mm; height: 297mm; background: #fff; box-shadow: var(--paper-shadow); flex: none;
+  display: grid; justify-content: center; align-content: center; overflow: hidden;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
+/* ---------- the card ---------- */
+.cell { width: var(--cw); height: var(--ch); }
+.cut .cell { outline: .15mm solid #b9bfca; outline-offset: -.075mm; }
+.card {
+  container-type: size; width: 100%; height: 100%;
+  --c: #4aa95a; --d: #1f6b34; --t: #e6f4e4; --bw: 1.3cqw;
+  background: #fff; padding: 1.5cqw; color: #1b2230;
+}
+.thick .card { --bw: 2.4cqw; }
+.card-in {
+  width: 100%; height: 100%; background: #fff; border: var(--bw) solid var(--c); border-radius: 4.2cqw; padding: 2.6cqw 3cqw 3cqw;
+  display: grid; grid-template-rows: auto 1fr auto; gap: 2.4cqw; position: relative;
+}
+.head { display: flex; justify-content: space-between; align-items: center; gap: 2cqw; font-family: var(--font-display); font-weight: 600; font-size: 3.6cqw; letter-spacing: .12em; text-transform: uppercase; color: var(--d); line-height: 1.2; min-height: 6.6cqw; }
+.head .nm { font-family: var(--font-body); font-weight: 900; letter-spacing: 0; text-transform: none; color: #1b2230; text-align: right; white-space: nowrap; line-height: 1.1; }
+.numbox {
+  position: relative; background: var(--t); border: .5cqw solid var(--c); border-radius: 3.2cqw;
+  display: grid; place-items: center; overflow: hidden; min-height: 0;
+}
+.numbox::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(var(--c) .55cqw, transparent .65cqw); background-size: 5cqw 5cqw; opacity: .15; }
+.num { position: relative; font-family: var(--font-display); font-weight: 700; line-height: 1; color: var(--d); font-size: 60cqw; letter-spacing: -.02em; }
+.num.one { font-size: 74cqw; }
+.num.three { font-size: 42cqw; }
+.words { display: grid; grid-template-columns: 1fr .6cqw 1fr; gap: 2cqw; }
+.divider { background: var(--c); opacity: .55; border-radius: 1cqw; }
+.col { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 0; }
+.tag { font-size: 3.1cqw; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--d); opacity: .8; line-height: 1.2; }
+.furi { font-family: var(--font-body); font-weight: 700; color: var(--d); line-height: 1.25; white-space: nowrap; min-height: 5.2cqw; display: flex; align-items: center; }
+.main { flex: 1; display: flex; align-items: center; justify-content: center; line-height: 1.04; }
+.main.en { font-family: var(--font-display); font-weight: 600; color: #1b2230; }
+.main.jp { font-family: var(--font-body); font-weight: 900; color: #1b2230; white-space: nowrap; }
+.noreads .furi { display: none; }
+
+@page { size: A4; margin: 0; }
+@media print {
+  html, body { background: #fff !important; }
+  body { padding: 0; }
+  .wrap { display: block; max-width: none; }
+  .ui, .sheet-label { display: none !important; }
+  .sheets { display: block; overflow: visible; padding: 0; }
+  .sheet { box-shadow: none; break-after: page; page-break-after: always; }
+  .sheet:last-child { break-after: auto; page-break-after: auto; }
+}
+@media (prefers-reduced-motion: no-preference) { .panel { transition: border-color .2s; } }
+</style>
+
+<div class="wrap">
+  <header class="ui">
+    <h1>Calling Deck</h1>
+    <p class="sub">Print number cards for cold-calling students. Cut them out, lay each one over a Pokémon card, and slide both into a clear sleeve.</p>
+  </header>
+
+  <section class="panel ui" aria-label="Deck settings">
+    <fieldset>
+      <legend>Numbers</legend>
+      <div class="row">
+        <label for="from">From <input id="from" type="number" min="1" max="100" value="1"></label>
+        <label for="to">to <input id="to" type="number" min="1" max="100" value="45"></label>
+      </div>
+      <p class="help">Any range from 1 to 100. Colors spread across the rainbow, one shade per group of ten.</p>
+    </fieldset>
+    <fieldset>
+      <legend>Name on cards</legend>
+      <input id="owner" type="text" maxlength="24" autocomplete="off" placeholder="e.g. 光先生 or Jacob" value="光先生" style="width:100%">
+      <p class="help">Printed in the top right corner of every card. Leave it empty for no name. Saved in this browser.</p>
+    </fieldset>
+    <fieldset>
+      <legend>Card size</legend>
+      <div class="row">
+        <label for="w"><input id="w" type="number" min="40" max="190" step="0.5" value="61"></label>
+        <span class="unit">×</span>
+        <label for="h"><input id="h" type="number" min="40" max="280" step="0.5" value="86"><span class="unit">mm</span></label>
+      </div>
+      <p class="help">61 × 86 mm sits just inside a standard 63 × 88 mm Pokémon card, so the paper lies flat in the sleeve.</p>
+    </fieldset>
+    <fieldset>
+      <legend>Color</legend>
+      <select id="palette" aria-label="Color scheme">
+        <option value="types">Rainbow, one color per ten</option>
+        <option value="mono">Black and white (saves ink)</option>
+      </select>
+      <select id="border" aria-label="Border thickness">
+        <option value="thin">Thin border (saves ink)</option>
+        <option value="medium">Medium border</option>
+      </select>
+    </fieldset>
+    <fieldset>
+      <legend>Options</legend>
+      <label for="reads"><input id="reads" type="checkbox" checked> Show readings (katakana and hiragana)</label>
+      <label for="cut"><input id="cut" type="checkbox" checked> Show cut lines</label>
+    </fieldset>
+  </section>
+
+  <section class="print-note ui" aria-label="Printing">
+    <strong>To print</strong>
+    <p>Press <kbd>Ctrl</kbd> + <kbd>P</kbd> (<kbd>⌘</kbd> + <kbd>P</kbd> on Mac). Choose A4, scale 100% (not "fit to page"), and margins set to none. Turn on "Background graphics" so the colors print.</p>
+  </section>
+
+  <div class="stats ui" id="stats" aria-live="polite"></div>
+  <div class="sheets" id="sheets"></div>
+</div>
+
+<script>
+(function () {
+  var EN_ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+  var EN_TEENS = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  var EN_TENS = { 2: 'twenty', 3: 'thirty', 4: 'forty', 5: 'fifty', 6: 'sixty', 7: 'seventy', 8: 'eighty', 9: 'ninety' };
+  var KA_ONES = ['', 'ワン', 'トゥー', 'スリー', 'フォー', 'ファイブ', 'シックス', 'セブン', 'エイト', 'ナイン'];
+  var KA_TEENS = ['テン', 'イレブン', 'トゥエルブ', 'サーティーン', 'フォーティーン', 'フィフティーン', 'シックスティーン', 'セブンティーン', 'エイティーン', 'ナインティーン'];
+  var KA_TENS = { 2: 'トゥエンティ', 3: 'サーティ', 4: 'フォーティ', 5: 'フィフティ', 6: 'シックスティ', 7: 'セブンティ', 8: 'エイティ', 9: 'ナインティ' };
+  var KJ = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+  var HI_ONES = ['', 'いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう'];
+  var HI_TENS = { 1: 'じゅう', 2: 'にじゅう', 3: 'さんじゅう', 4: 'よんじゅう', 5: 'ごじゅう', 6: 'ろくじゅう', 7: 'ななじゅう', 8: 'はちじゅう', 9: 'きゅうじゅう' };
+
+  function data(n) {
+    if (n === 100) return { en: 'one hundred', ka: 'ワンハンドレッド', kj: '百', hi: 'ひゃく' };
+    var t = Math.floor(n / 10), o = n % 10;
+    if (n < 10) return { en: EN_ONES[n], ka: KA_ONES[n], kj: KJ[n], hi: HI_ONES[n] };
+    if (n < 20) return { en: EN_TEENS[o], ka: KA_TEENS[o], kj: '十' + KJ[o], hi: 'じゅう' + HI_ONES[o] };
+    return {
+      en: EN_TENS[t] + (o ? '-' + EN_ONES[o] : ''),
+      ka: KA_TENS[t] + KA_ONES[o],
+      kj: (t > 1 ? KJ[t] : '') + '十' + KJ[o],
+      hi: HI_TENS[t] + HI_ONES[o]
+    };
+  }
+
+  /* One hue per group of ten in the chosen range, stepping from red to violet. */
+  function colorFor(n, o) {
+    var g = Math.floor(n / 10) - o.g0, k = o.g1 - o.g0;
+    var hue = k === 0 ? 210 : Math.round(270 * g / k);
+    var warm = hue > 35 && hue < 110;
+    return {
+      c: 'hsl(' + hue + ',' + (warm ? 85 : 72) + '%,' + (warm ? 46 : 52) + '%)',
+      d: 'hsl(' + hue + ',70%,24%)',
+      t: 'hsl(' + hue + ',85%,94%)'
+    };
+  }
+  var MONO = { c: '#4a4a4a', d: '#111111', t: '#f2f2f2' };
+
+  function $(id) { return document.getElementById(id); }
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  function enMarkup(word) {
+    var parts = word.indexOf('-') > -1 ? [word.split('-')[0] + '-', word.split('-')[1]] : word.indexOf(' ') > -1 ? word.split(' ') : [word];
+    var longest = Math.max.apply(null, parts.map(function (p) { return p.length; }));
+    var size = Math.min(13.5, 43 / (longest * 0.56));
+    return '<span class="main en" style="font-size:' + size.toFixed(2) + 'cqw">' + parts.join('<br>') + '</span>';
+  }
+  function furiSize(str, max) { return Math.min(max, 42 / str.length).toFixed(2); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function nameHTML(raw) {
+    var s = (raw || '').trim();
+    if (!s) return '<span></span>';
+    var len = 0;
+    for (var i = 0; i < s.length; i++) len += s.charCodeAt(i) > 0x2e7f ? 1 : 0.58;
+    var size = Math.min(6.4, 46 / Math.max(len, 1));
+    return '<span class="nm" style="font-size:' + size.toFixed(2) + 'cqw">' + esc(s) + '</span>';
+  }
+
+  function cardHTML(n, total, opts) {
+    var d = data(n);
+    var pal = opts.mono ? MONO : colorFor(n, opts);
+    var kjSize = Math.min(18, 41 / d.kj.length).toFixed(2);
+    return '<div class="cell"><div class="card" style="--c:' + pal.c + ';--d:' + pal.d + ';--t:' + pal.t + '">' +
+      '<div class="card-in">' +
+        '<div class="head"><span>Number (ナンバー)</span>' + nameHTML(opts.owner) + '</div>' +
+        '<div class="numbox"><span class="num' + (n < 10 ? ' one' : n > 99 ? ' three' : '') + '">' + n + '</span></div>' +
+        '<div class="words">' +
+          '<div class="col"><span class="tag">English</span>' +
+            '<span class="furi" style="font-size:' + furiSize(d.ka, 5.4) + 'cqw">' + d.ka + '</span>' + enMarkup(d.en) + '</div>' +
+          '<div class="divider"></div>' +
+          '<div class="col"><span class="tag">日本語</span>' +
+            '<span class="furi" style="font-size:' + furiSize(d.hi, 5.4) + 'cqw">' + d.hi + '</span>' +
+            '<span class="main jp" style="font-size:' + kjSize + 'cqw">' + d.kj + '</span></div>' +
+        '</div>' +
+      '</div></div></div>';
+  }
+
+  function render() {
+    var from = clamp(parseInt($('from').value, 10) || 1, 1, 100);
+    var to = clamp(parseInt($('to').value, 10) || from, from, 100);
+    var w = clamp(parseFloat($('w').value) || 61, 40, 190);
+    var h = clamp(parseFloat($('h').value) || 86, 40, 280);
+    var margin = 8;
+    var cols = Math.max(1, Math.floor((210 - 2 * margin) / w));
+    var rows = Math.max(1, Math.floor((297 - 2 * margin) / h));
+    var per = cols * rows;
+    var opts = { mono: $('palette').value === 'mono', owner: $('owner').value, g0: Math.floor(from / 10), g1: Math.floor(to / 10) };
+
+    var sheets = $('sheets');
+    sheets.style.setProperty('--cw', w + 'mm');
+    sheets.style.setProperty('--ch', h + 'mm');
+    sheets.className = 'sheets' + ($('reads').checked ? '' : ' noreads') + ($('cut').checked ? ' cut' : '') + ($('border').value === 'medium' ? ' thick' : '');
+
+    var nums = [];
+    for (var n = from; n <= to; n++) nums.push(n);
+    var pages = Math.ceil(nums.length / per);
+    var html = '';
+    for (var p = 0; p < pages; p++) {
+      var slice = nums.slice(p * per, (p + 1) * per);
+      html += '<div><div class="sheet-label">Page ' + (p + 1) + ' of ' + pages + '</div>' +
+        '<div class="sheet" style="grid-template-columns:repeat(' + cols + ',' + w + 'mm);grid-auto-rows:' + h + 'mm">' +
+        slice.map(function (x) { return cardHTML(x, to, opts); }).join('') + '</div></div>';
+    }
+    sheets.innerHTML = html;
+    $('stats').innerHTML = '<span><b>' + nums.length + '</b> cards</span><span><b>' + pages + '</b> A4 ' + (pages === 1 ? 'page' : 'pages') +
+      '</span><span><b>' + cols + ' × ' + rows + '</b> per page</span>';
+  }
+
+  var OWNER_KEY = 'calling-deck-owner';
+  try {
+    var savedOwner = localStorage.getItem(OWNER_KEY);
+    if (savedOwner !== null) $('owner').value = savedOwner;
+  } catch (e) {}
+  $('owner').addEventListener('input', function () {
+    try { localStorage.setItem(OWNER_KEY, $('owner').value); } catch (e) {}
+  });
+
+  ['from', 'to', 'w', 'h', 'owner', 'palette', 'border', 'reads', 'cut'].forEach(function (id) {
+    $(id).addEventListener('input', render);
+    $(id).addEventListener('change', render);
+  });
+  render();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+</script>
+</body></html>
